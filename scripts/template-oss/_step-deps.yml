@@ -1,2 +1,0 @@
-- name: Reset Deps
-  run: {{rootNpmPath}} run resetdeps {{~#if jobDepFlags}} -- {{ jobDepFlags }}{{/if}}

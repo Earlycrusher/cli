@@ -1,9 +1,9 @@
-const { join, basename } = require('path')
-const fsp = require('fs/promises')
+const { join, basename } = require('node:path')
+const fsp = require('node:fs/promises')
 const hgi = require('hosted-git-info')
 const semver = require('semver')
 const pacote = require('pacote')
-const log = require('proc-log')
+const { log } = require('proc-log')
 const tar = require('tar')
 const { cp, withTempDir } = require('@npmcli/fs')
 const { CWD, run, spawn, git, fs, gh } = require('./util.js')
@@ -155,7 +155,9 @@ const main = async (spec, branch = 'main', opts) => withTempDir(CWD, async (tmpD
   const npmVersion = semver.parse(mani.version)
   const npmHost = hgi.fromUrl(NODE_FORK)
   const npmTag = `v${npmVersion}`
-  const npmBranch = `npm-${npmTag}`
+  // use the target branch as part of the name so we can create multiple PRs for
+  // the same npm version targeting different Node branches at the same time
+  const npmBranch = `npm-${npmTag}-${branch}`
   const npmRemoteUrl = tokenRemoteUrl({ host: npmHost, token: GITHUB_TOKEN })
   const npmMessage = (v = npmVersion) => `deps: upgrade npm to ${v}`
 
@@ -228,6 +230,7 @@ const main = async (spec, branch = 'main', opts) => withTempDir(CWD, async (tmpD
   const npmPrs = await gh.json(
     ...nodePrArgs, 'list',
     '-S', `in:title "${npmMessage('')}"`,
+    '--base', nodeBranch,
     'number,title,url'
   )
 
@@ -247,7 +250,7 @@ const main = async (spec, branch = 'main', opts) => withTempDir(CWD, async (tmpD
     }
   }
 
-  log.info('Found exisiting PR', existingPr)
+  log.info('Found existing PR', existingPr)
   log.info('Found PRs to close', closePrs)
 
   const prBody = await getPrBody({ releases: npmReleases, closePrs })
@@ -280,5 +283,5 @@ const main = async (spec, branch = 'main', opts) => withTempDir(CWD, async (tmpD
 })
 
 run(({ argv, ...opts }) => main(argv.remain[0], argv.remain[1], opts), {
-  redact: new RegExp(process.env.GITHUB_TOKEN, 'g'),
+  redact: process.env.GITHUB_TOKEN,
 })

@@ -1,8 +1,8 @@
 const t = require('tap')
-const { resolve } = require('path')
-const fs = require('fs/promises')
+const { resolve } = require('node:path')
+const fs = require('node:fs/promises')
 const { load: _loadMockNpm } = require('../../fixtures/mock-npm.js')
-const mockGlobals = require('../../fixtures/mock-globals.js')
+const mockGlobals = require('@npmcli/mock-globals')
 const tmock = require('../../fixtures/tmock')
 const { cleanCwd, cleanDate } = require('../../fixtures/clean-snapshot.js')
 
@@ -40,13 +40,15 @@ const loadMockNpm = async (t, { errorMocks, ...opts } = {}) => {
   })
   return {
     ...res,
-    errorMessage: (er) => mockError(er, res.npm),
+    errorMessage: (er) => mockError.errorMessage(er, res.npm),
   }
 }
 
 t.test('just simple messages', async t => {
   const { errorMessage } = await loadMockNpm(t, {
+    prefixDir: { 'package-lock.json': '{}' },
     command: 'audit',
+    exec: true,
   })
   const codes = [
     'ENOAUDIT',
@@ -91,17 +93,12 @@ t.test('just simple messages', async t => {
 
 t.test('replace message/stack sensistive info', async t => {
   const { errorMessage } = await loadMockNpm(t, { command: 'audit' })
-  const path = '/some/path'
-  const pkgid = 'some@package'
-  const file = '/some/file'
-  const stack = 'dummy stack trace at https://user:pass@registry.npmjs.org/'
-  const message = 'Error at registry: https://user:pass@registry.npmjs.org/'
-  const er = Object.assign(new Error(message), {
+  const er = Object.assign(new Error('Error at registry: https://user:pass@registry.npmjs.org/'), {
     code: 'ENOAUDIT',
-    path,
-    pkgid,
-    file,
-    stack,
+    path: '/some/path',
+    pkgid: 'some@package',
+    file: '/some/file',
+    stack: 'dummy stack trace at https://user:pass@registry.npmjs.org/',
   })
   t.matchSnapshot(errorMessage(er))
 })
@@ -384,6 +381,27 @@ t.test('bad platform', async t => {
     t.matchSnapshot(errorMessage(er))
     t.end()
   })
+  t.test('omits keys with no required value', t => {
+    const er = Object.assign(new Error('a bad plat'), {
+      pkgid: 'lodash@1.0.0',
+      current: {
+        os: 'posix',
+        cpu: 'x64',
+        libc: 'musl',
+      },
+      required: {
+        os: ['!yours', 'mine'],
+        libc: [], // empty arrays should also lead to a key being removed
+        cpu: undefined, // XXX npm-install-checks sets unused keys to undefined
+      },
+      code: 'EBADPLATFORM',
+    })
+    const msg = errorMessage(er)
+    t.matchSnapshot(msg)
+    t.notMatch(msg, /Valid cpu/, 'omits cpu from message')
+    t.notMatch(msg, /Valid libc/, 'omits libc from message')
+    t.end()
+  })
 })
 
 t.test('explain ERESOLVE errors', async t => {
@@ -393,10 +411,13 @@ t.test('explain ERESOLVE errors', async t => {
     errorMocks: {
       '{LIB}/utils/explain-eresolve.js': {
         report: (...args) => {
-          EXPLAIN_CALLED.push(args)
+          EXPLAIN_CALLED.push(...args)
           return { explanation: 'explanation', file: 'report' }
         },
       },
+    },
+    config: {
+      color: 'always',
     },
   })
 
@@ -405,5 +426,8 @@ t.test('explain ERESOLVE errors', async t => {
   })
 
   t.matchSnapshot(errorMessage(er))
-  t.match(EXPLAIN_CALLED, [[er, false]])
+  t.equal(EXPLAIN_CALLED.length, 3)
+  t.match(EXPLAIN_CALLED, [er, Function, Function])
+  t.not(EXPLAIN_CALLED[1].level, 0, 'color chalk level is not 0')
+  t.equal(EXPLAIN_CALLED[2].level, 0, 'colorless chalk level is 0')
 })

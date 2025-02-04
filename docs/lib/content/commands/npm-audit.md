@@ -30,6 +30,13 @@ vulnerability is found. It may be useful in CI environments to include the
 will cause the command to fail. This option does not filter the report
 output, it simply changes the command's failure threshold.
 
+### Package lock
+
+By default npm requires a package-lock or shrinkwrap in order to run the
+audit.  You can bypass the package lock with `--no-package-lock` but be
+aware the results may be different with every run, since npm will
+re-build the dependency tree each time.
+
 ### Audit Signatures
 
 To ensure the integrity of packages you download from the public npm registry, or any registry that supports signatures, you can verify the registry signatures of downloaded packages using the npm CLI.
@@ -39,6 +46,13 @@ Registry signatures can be verified using the following `audit` command:
 ```bash
 $ npm audit signatures
 ```
+
+The `audit signatures` command will also verify the provenance attestations of
+downloaded packages. Because provenance attestations are such a new feature,
+security features may be added to (or changed in) the attestation format over
+time. To ensure that you're always able to verify attestation signatures check
+that you're running the latest version of the npm CLI. Please note this often
+means updating npm beyond the version that ships with Node.js.
 
 The npm CLI supports registry signatures and signing keys provided by any registry if the following conventions are followed:
 
@@ -74,13 +88,13 @@ The `sig` is generated using the following template: `${package.name}@${package.
 
 Keys response:
 
-- `expires`: null or a simplified extended <a href="https://en.wikipedia.org/wiki/ISO_8601" target="_blank">ISO 8601 format</a>: `YYYY-MM-DDTHH:mm:ss.sssZ`
+- `expires`: null or a simplified extended [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601): `YYYY-MM-DDTHH:mm:ss.sssZ`
 - `keydid`: sha256 fingerprint of the public key
 - `keytype`: only `ecdsa-sha2-nistp256` is currently supported by the npm CLI
 - `scheme`: only `ecdsa-sha2-nistp256` is currently supported by the npm CLI
 - `key`: base64 encoded public key
 
-See this <a href="https://registry.npmjs.org/-/npm/v1/keys" target="_blank">example key's response from the public npm registry</a>.
+See this [example key's response from the public npm registry](https://registry.npmjs.org/-/npm/v1/keys).
 
 ### Audit Endpoints
 

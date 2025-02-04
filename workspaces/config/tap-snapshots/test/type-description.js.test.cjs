@@ -7,8 +7,9 @@
 'use strict'
 exports[`test/type-description.js TAP > must match snapshot 1`] = `
 Object {
-  "_exit": Array [
-    "boolean value (true or false)",
+  "_auth": Array [
+    null,
+    Function String(),
   ],
   "access": Array [
     null,
@@ -26,25 +27,21 @@ Object {
     "dev",
     "development",
   ],
-  "always-auth": Array [
-    "boolean value (true or false)",
-  ],
   "audit": Array [
     "boolean value (true or false)",
   ],
   "audit-level": Array [
+    null,
+    "info",
     "low",
     "moderate",
     "high",
     "critical",
     "none",
-    null,
   ],
   "auth-type": Array [
     "legacy",
-    "sso",
-    "saml",
-    "oauth",
+    "web",
   ],
   "before": Array [
     null,
@@ -65,15 +62,6 @@ Object {
   ],
   "cache": Array [
     "valid filesystem path",
-  ],
-  "cache-lock-retries": Array [
-    "numeric value",
-  ],
-  "cache-lock-stale": Array [
-    "numeric value",
-  ],
-  "cache-lock-wait": Array [
-    "numeric value",
   ],
   "cache-max": Array [
     "numeric value",
@@ -103,7 +91,12 @@ Object {
   "commit-hooks": Array [
     "boolean value (true or false)",
   ],
+  "cpu": Array [
+    null,
+    Function String(),
+  ],
   "depth": Array [
+    null,
     "numeric value",
   ],
   "description": Array [
@@ -112,6 +105,31 @@ Object {
   "dev": Array [
     "boolean value (true or false)",
   ],
+  "diff": Array [
+    Function String(),
+    Function Array(),
+  ],
+  "diff-dst-prefix": Array [
+    Function String(),
+  ],
+  "diff-ignore-all-space": Array [
+    "boolean value (true or false)",
+  ],
+  "diff-name-only": Array [
+    "boolean value (true or false)",
+  ],
+  "diff-no-prefix": Array [
+    "boolean value (true or false)",
+  ],
+  "diff-src-prefix": Array [
+    Function String(),
+  ],
+  "diff-text": Array [
+    "boolean value (true or false)",
+  ],
+  "diff-unified": Array [
+    "numeric value",
+  ],
   "dry-run": Array [
     "boolean value (true or false)",
   ],
@@ -119,6 +137,14 @@ Object {
     Function String(),
   ],
   "engine-strict": Array [
+    "boolean value (true or false)",
+  ],
+  "expect-result-count": Array [
+    null,
+    "numeric value",
+  ],
+  "expect-results": Array [
+    null,
     "boolean value (true or false)",
   ],
   "fetch-retries": Array [
@@ -133,7 +159,13 @@ Object {
   "fetch-retry-mintimeout": Array [
     "numeric value",
   ],
+  "fetch-timeout": Array [
+    "numeric value",
+  ],
   "force": Array [
+    "boolean value (true or false)",
+  ],
+  "foreground-scripts": Array [
     "boolean value (true or false)",
   ],
   "format-package-lock": Array [
@@ -167,9 +199,6 @@ Object {
   "if-present": Array [
     "boolean value (true or false)",
   ],
-  "ignore-prepublish": Array [
-    "boolean value (true or false)",
-  ],
   "ignore-scripts": Array [
     "boolean value (true or false)",
   ],
@@ -181,6 +210,9 @@ Object {
     "peer",
   ],
   "include-staged": Array [
+    "boolean value (true or false)",
+  ],
+  "include-workspace-root": Array [
     "boolean value (true or false)",
   ],
   "init-author-email": Array [
@@ -199,8 +231,39 @@ Object {
   "init-module": Array [
     "valid filesystem path",
   ],
+  "init-type": Array [
+    Function String(),
+  ],
   "init-version": Array [
     "full valid SemVer string",
+  ],
+  "init.author.email": Array [
+    Function String(),
+  ],
+  "init.author.name": Array [
+    Function String(),
+  ],
+  "init.author.url": Array [
+    "",
+    "full url with \\"http://\\"",
+  ],
+  "init.license": Array [
+    Function String(),
+  ],
+  "init.module": Array [
+    "valid filesystem path",
+  ],
+  "init.version": Array [
+    "full valid SemVer string",
+  ],
+  "install-links": Array [
+    "boolean value (true or false)",
+  ],
+  "install-strategy": Array [
+    "hoisted",
+    "nested",
+    "shallow",
+    "linked",
   ],
   "json": Array [
     "boolean value (true or false)",
@@ -215,8 +278,26 @@ Object {
   "legacy-peer-deps": Array [
     "boolean value (true or false)",
   ],
+  "libc": Array [
+    null,
+    Function String(),
+  ],
   "link": Array [
     "boolean value (true or false)",
+  ],
+  "location": Array [
+    "global",
+    "user",
+    "project",
+  ],
+  "lockfile-version": Array [
+    null,
+    1,
+    2,
+    3,
+    "1",
+    "2",
+    "3",
   ],
   "loglevel": Array [
     "silent",
@@ -224,10 +305,13 @@ Object {
     "warn",
     "notice",
     "http",
-    "timing",
     "info",
     "verbose",
     "silly",
+  ],
+  "logs-dir": Array [
+    null,
+    "valid filesystem path",
   ],
   "logs-max": Array [
     "numeric value",
@@ -241,24 +325,11 @@ Object {
   "message": Array [
     Function String(),
   ],
-  "metrics-registry": Array [
-    null,
-    Function String(),
-  ],
-  "multiple-numbers": Array [
-    Function Array(),
-    "numeric value",
-  ],
   "node-options": Array [
     null,
     Function String(),
   ],
-  "node-version": Array [
-    null,
-    "full valid SemVer string",
-  ],
   "noproxy": Array [
-    null,
     Function String(),
     Function Array(),
   ],
@@ -271,18 +342,27 @@ Object {
     "optional",
     "peer",
   ],
+  "omit-lockfile-registry-resolved": Array [
+    "boolean value (true or false)",
+  ],
   "only": Array [
     null,
-    "dev",
-    "development",
     "prod",
     "production",
   ],
   "optional": Array [
+    null,
     "boolean value (true or false)",
+  ],
+  "os": Array [
+    null,
+    Function String(),
   ],
   "otp": Array [
     null,
+    Function String(),
+  ],
+  "pack-destination": Array [
     Function String(),
   ],
   "package": Array [
@@ -298,6 +378,9 @@ Object {
   "parseable": Array [
     "boolean value (true or false)",
   ],
+  "prefer-dedupe": Array [
+    "boolean value (true or false)",
+  ],
   "prefer-offline": Array [
     "boolean value (true or false)",
   ],
@@ -311,10 +394,17 @@ Object {
     Function String(),
   ],
   "production": Array [
+    null,
     "boolean value (true or false)",
   ],
   "progress": Array [
     "boolean value (true or false)",
+  ],
+  "provenance": Array [
+    "boolean value (true or false)",
+  ],
+  "provenance-file": Array [
+    "valid filesystem path",
   ],
   "proxy": Array [
     null,
@@ -328,11 +418,13 @@ Object {
     "boolean value (true or false)",
   ],
   "registry": Array [
-    null,
     "full url with \\"http://\\"",
   ],
-  "rollback": Array [
-    "boolean value (true or false)",
+  "replace-registry-host": Array [
+    "npmjs",
+    "never",
+    "always",
+    Function String(),
   ],
   "save": Array [
     "boolean value (true or false)",
@@ -349,11 +441,23 @@ Object {
   "save-optional": Array [
     "boolean value (true or false)",
   ],
+  "save-peer": Array [
+    "boolean value (true or false)",
+  ],
   "save-prefix": Array [
     Function String(),
   ],
   "save-prod": Array [
     "boolean value (true or false)",
+  ],
+  "sbom-format": Array [
+    "cyclonedx",
+    "spdx",
+  ],
+  "sbom-type": Array [
+    "library",
+    "application",
+    "framework",
   ],
   "scope": Array [
     Function String(),
@@ -362,13 +466,7 @@ Object {
     null,
     Function String(),
   ],
-  "scripts-prepend-node-path": Array [
-    "boolean value (true or false)",
-    "auto",
-    "warn-only",
-  ],
   "searchexclude": Array [
-    null,
     Function String(),
   ],
   "searchlimit": Array [
@@ -379,9 +477,6 @@ Object {
   ],
   "searchstaleness": Array [
     "numeric value",
-  ],
-  "send-metrics": Array [
-    "boolean value (true or false)",
   ],
   "shell": Array [
     Function String(),
@@ -395,13 +490,8 @@ Object {
   "sign-git-tag": Array [
     "boolean value (true or false)",
   ],
-  "sso-poll-frequency": Array [
-    "numeric value",
-  ],
-  "sso-type": Array [
-    null,
-    "oauth",
-    "saml",
+  "strict-peer-deps": Array [
+    "boolean value (true or false)",
   ],
   "strict-ssl": Array [
     "boolean value (true or false)",
@@ -414,9 +504,6 @@ Object {
   ],
   "timing": Array [
     "boolean value (true or false)",
-  ],
-  "tmp": Array [
-    "valid filesystem path",
   ],
   "umask": Array [
     "octal number in range 0o000..0o777 (0..511)",
@@ -444,6 +531,25 @@ Object {
   ],
   "viewer": Array [
     Function String(),
+  ],
+  "which": Array [
+    null,
+    "numeric value",
+  ],
+  "workspace": Array [
+    Function String(),
+    Function Array(),
+  ],
+  "workspaces": Array [
+    null,
+    "boolean value (true or false)",
+  ],
+  "workspaces-update": Array [
+    "boolean value (true or false)",
+  ],
+  "yes": Array [
+    null,
+    "boolean value (true or false)",
   ],
 }
 `

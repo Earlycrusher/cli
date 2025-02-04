@@ -24,15 +24,16 @@ All commands:
     access, adduser, audit, bugs, cache, ci, completion,
     config, dedupe, deprecate, diff, dist-tag, docs, doctor,
     edit, exec, explain, explore, find-dupes, fund, get, help,
-    hook, init, install, install-ci-test, install-test, link,
-    ll, login, logout, ls, org, outdated, owner, pack, ping,
-    pkg, prefix, profile, prune, publish, query, rebuild, repo,
-    restart, root, run-script, search, set, shrinkwrap, star,
-    stars, start, stop, team, test, token, uninstall, unpublish,
-    unstar, update, version, view, whoami
+    help-search, init, install, install-ci-test, install-test,
+    link, ll, login, logout, ls, org, outdated, owner, pack,
+    ping, pkg, prefix, profile, prune, publish, query, rebuild,
+    repo, restart, root, run-script, sbom, search, set,
+    shrinkwrap, star, stars, start, stop, team, test, token,
+    undeprecate, uninstall, unpublish, unstar, update, version,
+    view, whoami
 
 Specify configs in the ini-formatted file:
-    {NPM}/{TESTDIR}/project/.npmrc
+    {NPM}/{TESTDIR}/home/.npmrc
 or on the command line via: npm <command> --key=value
 
 More configuration info: npm help config
@@ -42,33 +43,30 @@ npm {NPM}
 `
 
 exports[`test/index.js TAP basic npm ci > should throw mismatch deps in lock file error 1`] = `
-npm ERR! code EUSAGE
-npm ERR! 
-npm ERR! \`npm ci\` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. Please update your lock file with \`npm install\` before continuing.
-npm ERR! 
-npm ERR! Invalid: lock file's abbrev@1.0.4 does not satisfy abbrev@1.1.1
-npm ERR! 
-npm ERR! Clean install a project
-npm ERR! 
-npm ERR! Usage:
-npm ERR! npm ci
-npm ERR! 
-npm ERR! Options:
-npm ERR! [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-npm ERR! [-E|--save-exact] [-g|--global]
-npm ERR! [--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
-npm ERR! [--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
-npm ERR! [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
-npm ERR! [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
-npm ERR! [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-npm ERR! [-ws|--workspaces] [--include-workspace-root] [--no-install-links]
-npm ERR! 
-npm ERR! aliases: clean-install, ic, install-clean, isntall-clean
-npm ERR! 
-npm ERR! Run "npm help ci" for more info
-
-npm ERR! A complete log of this run can be found in:
-
+npm error code EUSAGE
+npm error
+npm error \`npm ci\` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. Please update your lock file with \`npm install\` before continuing.
+npm error
+npm error Invalid: lock file's abbrev@1.0.4 does not satisfy abbrev@1.1.1
+npm error
+npm error Clean install a project
+npm error
+npm error Usage:
+npm error npm ci
+npm error
+npm error Options:
+npm error [--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
+npm error [--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+npm error [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]]
+npm error [--strict-peer-deps] [--foreground-scripts] [--ignore-scripts] [--no-audit]
+npm error [--no-bin-links] [--no-fund] [--dry-run]
+npm error [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+npm error [--workspaces] [--include-workspace-root] [--install-links]
+npm error
+npm error aliases: clean-install, ic, install-clean, isntall-clean
+npm error
+npm error Run "npm help ci" for more info
+npm error A complete log of this run can be found in: {NPM}/{TESTDIR}/cache/_logs/{LOG}
 `
 
 exports[`test/index.js TAP basic npm diff > should have expected diff output 1`] = `
@@ -119,7 +117,8 @@ Wrote to {NPM}/{TESTDIR}/project/package.json:
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "type": "commonjs"
 }
 `
 
@@ -174,6 +173,7 @@ Object {
   "scripts": Object {
     "test": "echo /"Error: no test specified/" && exit 1",
   },
+  "type": "commonjs",
   "version": "1.0.0",
 }
 `
@@ -226,6 +226,7 @@ Object {
   "scripts": Object {
     "test": "echo /"Error: no test specified/" && exit 1",
   },
+  "type": "commonjs",
   "version": "1.0.0",
 }
 `
@@ -256,6 +257,7 @@ Object {
     "hello": "echo Hello",
     "test": "echo /"Error: no test specified/" && exit 1",
   },
+  "type": "commonjs",
   "version": "1.0.0",
 }
 `
@@ -280,6 +282,7 @@ Object {
       "LC_ALL=sk",
     ],
   },
+  "type": "commonjs",
   "version": "1.0.0",
 }
 `
@@ -309,6 +312,7 @@ exports[`test/index.js TAP basic npm pkg > should print package.json contents 1`
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "type": "commonjs",
   "dependencies": {
     "abbrev": "^1.0.4"
   },
@@ -338,6 +342,7 @@ Object {
     "hello": "echo Hello",
     "test": "echo /"Error: no test specified/" && exit 1",
   },
+  "type": "commonjs",
   "version": "1.0.0",
 }
 `
@@ -395,6 +400,7 @@ Object {
     "hello": "echo Hello",
     "test": "echo /"Error: no test specified/" && exit 1",
   },
+  "type": "commonjs",
   "version": "1.0.0",
 }
 `
@@ -455,6 +461,7 @@ Object {
     "hello": "echo Hello",
     "test": "echo /"Error: no test specified/" && exit 1",
   },
+  "type": "commonjs",
   "version": "1.0.0",
 }
 `

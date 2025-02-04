@@ -1,6 +1,6 @@
 const t = require('tap')
 
-const fs = require('fs')
+const fs = require('node:fs')
 const { readFileSync } = fs
 
 // when running with `npm test` it adds environment variables that
@@ -11,29 +11,47 @@ Object.keys(process.env)
 delete process.env.PREFIX
 delete process.env.DESTDIR
 
-const definitions = require('./fixtures/definitions.js')
-const shorthands = require('./fixtures/shorthands.js')
-const flatten = require('./fixtures/flatten.js')
+const Definition = require('../lib/definitions/definition.js')
+const createDef = (key, value) => ({ [key]: new Definition(key, { key, ...value }) })
+
 const typeDefs = require('../lib/type-defs.js')
 
-const { resolve, join, dirname } = require('path')
+const { resolve, join, dirname } = require('node:path')
 
-const Config = t.mock('../', {
-  'fs/promises': {
-    ...fs.promises,
-    readFile: async (path, ...args) => {
-      if (path.includes('WEIRD-ERROR')) {
-        throw Object.assign(new Error('weird error'), { code: 'EWEIRD' })
-      }
+const mockFs = {
+  ...fs,
+  readFileSync: (path, ...args) => {
+    if (path.includes('WEIRD-ERROR')) {
+      throw Object.assign(new Error('weird error'), { code: 'EWEIRD' })
+    }
 
-      return fs.promises.readFile(path, ...args)
-    },
+    return fs.readFileSync(path, ...args)
   },
-})
+}
+
+const mockFsPromises = {
+  ...fs.promises,
+  readFile: async (path, ...args) => {
+    if (path.includes('WEIRD-ERROR')) {
+      throw Object.assign(new Error('weird error'), { code: 'EWEIRD' })
+    }
+
+    return fs.promises.readFile(path, ...args)
+  },
+}
+
+const fsMocks = {
+  'node:fs/promises': mockFsPromises,
+  'node:fs': mockFs,
+}
+
+const { definitions, shorthands, nerfDarts, flatten } = t.mock('../lib/definitions/index.js', fsMocks)
+const Config = t.mock('../', fsMocks)
 
 // because we used t.mock above, the require cache gets blown and we lose our direct equality
 // on the typeDefs. to get around that, we require an un-mocked Config and assert against that
 const RealConfig = require('../')
+
 t.equal(typeDefs, RealConfig.typeDefs, 'exposes type definitions')
 
 t.test('construct with no settings, get default values for stuff', t => {
@@ -152,6 +170,7 @@ loglevel = yolo
     'foo',
     '--also=dev',
     '--registry=hello',
+    '--proxy=hello',
     '--omit=cucumber',
     '--access=blueberry',
     '--multiple-numbers=what kind of fruit is not a number',
@@ -222,9 +241,10 @@ loglevel = yolo
     })
     logs.length = 0
     await config.load()
-    t.match(logs, [['verbose', 'config', 'error loading user config', {
-      message: 'weird error',
-    }]])
+    t.match(logs.find(l => l[0] === 'verbose'),
+      ['verbose', 'config', 'error loading user config', {
+        message: 'weird error',
+      }])
     logs.length = 0
   })
 
@@ -239,9 +259,24 @@ loglevel = yolo
       env,
       argv,
       cwd: join(`${path}/project`),
-
       shorthands,
-      definitions,
+      definitions: {
+        ...definitions,
+        ...createDef('multiple-numbers', {
+          default: [],
+          type: [Array, Number],
+          description: 'one or more numbers',
+        }),
+        ...createDef('methane', {
+          envExport: false,
+          type: String,
+          typeDescription: 'Greenhouse Gas',
+          default: 'CH4',
+          description: `
+            This is bad for the environment, for our children, do not put it there.
+          `,
+        }),
+      },
     })
 
     t.equal(config.globalPrefix, null, 'globalPrefix missing before load')
@@ -345,8 +380,12 @@ loglevel = yolo
 
     // warn logs are emitted as a side effect of validate
     config.validate()
-    t.strictSame(logs, [
+    t.strictSame(logs.filter(l => l[0] === 'warn'), [
+      ['warn', 'Unknown builtin config "builtin-config". This will stop working in the next major version of npm.'],
+      ['warn', 'Unknown builtin config "foo". This will stop working in the next major version of npm.'],
       ['warn', 'invalid config', 'registry="hello"', 'set in command line options'],
+      ['warn', 'invalid config', 'Must be', 'full url with "http://"'],
+      ['warn', 'invalid config', 'proxy="hello"', 'set in command line options'],
       ['warn', 'invalid config', 'Must be', 'full url with "http://"'],
       ['warn', 'invalid config', 'omit="cucumber"', 'set in command line options'],
       ['warn', 'invalid config', 'Must be one or more of:', 'dev, optional, peer'],
@@ -360,11 +399,16 @@ loglevel = yolo
       ['warn', 'invalid config', 'prefix=true', 'set in command line options'],
       ['warn', 'invalid config', 'Must be', 'valid filesystem path'],
       ['warn', 'config', 'also', 'Please use --include=dev instead.'],
-      ['warn', 'invalid config', 'loglevel="yolo"',
-        `set in ${resolve(path, 'project/.npmrc')}`],
+      ['warn', 'Unknown env config "foo". This will stop working in the next major version of npm.'],
+      ['warn', 'Unknown project config "project-config". This will stop working in the next major version of npm.'],
+      ['warn', 'Unknown project config "foo". This will stop working in the next major version of npm.'],
+      ['warn', 'Unknown user config "user-config-from-builtin". This will stop working in the next major version of npm.'],
+      ['warn', 'Unknown user config "foo". This will stop working in the next major version of npm.'],
+      ['warn', 'Unknown global config "global-config". This will stop working in the next major version of npm.'],
+      ['warn', 'Unknown global config "foo". This will stop working in the next major version of npm.'],
+      ['warn', 'invalid config', 'loglevel="yolo"', `set in ${resolve(path, 'project/.npmrc')}`],
       ['warn', 'invalid config', 'Must be one of:',
-        ['silent', 'error', 'warn', 'notice', 'http', 'timing', 'info',
-          'verbose', 'silly'].join(', '),
+        ['silent', 'error', 'warn', 'notice', 'http', 'info', 'verbose', 'silly'].join(', '),
       ],
     ])
     t.equal(config.valid, false)
@@ -495,7 +539,14 @@ loglevel = yolo
       platform: 'posix',
 
       shorthands,
-      definitions,
+      definitions: {
+        ...definitions,
+        ...createDef('multiple-numbers', {
+          default: [],
+          type: [Array, Number],
+          description: 'one or more numbers',
+        }),
+      },
     })
     await config.load()
 
@@ -532,8 +583,10 @@ loglevel = yolo
       all: config.get('all'),
     })
 
-    t.strictSame(logs, [
+    t.strictSame(logs.filter(l => l[0] === 'warn'), [
       ['warn', 'invalid config', 'registry="hello"', 'set in command line options'],
+      ['warn', 'invalid config', 'Must be', 'full url with "http://"'],
+      ['warn', 'invalid config', 'proxy="hello"', 'set in command line options'],
       ['warn', 'invalid config', 'Must be', 'full url with "http://"'],
       ['warn', 'invalid config', 'omit="cucumber"', 'set in command line options'],
       ['warn', 'invalid config', 'Must be one or more of:', 'dev, optional, peer'],
@@ -547,7 +600,14 @@ loglevel = yolo
       ['warn', 'invalid config', 'prefix=true', 'set in command line options'],
       ['warn', 'invalid config', 'Must be', 'valid filesystem path'],
       ['warn', 'config', 'also', 'Please use --include=dev instead.'],
+      ['warn', 'Unknown env config "foo". This will stop working in the next major version of npm.'],
+      ['warn', 'Unknown user config "default-user-config-in-home". This will stop working in the next major version of npm.'],
+      ['warn', 'Unknown user config "foo". This will stop working in the next major version of npm.'],
+      ['warn', 'Unknown global config "global-config". This will stop working in the next major version of npm.'],
+      ['warn', 'Unknown global config "foo". This will stop working in the next major version of npm.'],
+      ['warn', 'Unknown global config "asdf". This will stop working in the next major version of npm.'],
     ])
+    logs.length = 0
   })
 
   t.end()
@@ -637,9 +697,9 @@ t.test('ignore cafile if it does not load', async t => {
 })
 
 t.test('raise error if reading ca file error other than ENOENT', async t => {
-  const cafile = resolve(__dirname, 'fixtures', 'WEIRD-ERROR')
   const dir = t.testdir({
-    '.npmrc': `cafile = ${cafile}`,
+    '.npmrc': `cafile = ~/WEIRD-ERROR`,
+    'WEIRD-ERROR': '',
   })
   const config = new Config({
     shorthands,
@@ -1142,8 +1202,10 @@ t.test('workspaces', async (t) => {
     await config.load()
     t.equal(config.localPrefix, path, 'localPrefix is the root')
     t.same(config.get('workspace'), [join(path, 'workspaces', 'one')], 'set the workspace')
-    t.equal(logs.length, 1, 'got one log message')
-    t.match(logs[0], ['info', /^found workspace root at/], 'logged info about workspace root')
+    const info = logs.filter(l => l[0] === 'info')
+    t.equal(info.length, 1, 'got one log message')
+    t.match(info[0],
+      ['info', 'config', /^found workspace root at/], 'logged info about workspace root')
   })
 
   t.test('finds other workspace parent', async (t) => {
@@ -1163,8 +1225,10 @@ t.test('workspaces', async (t) => {
     await config.load()
     t.equal(config.localPrefix, path, 'localPrefix is the root')
     t.same(config.get('workspace'), ['../two'], 'kept the specified workspace')
-    t.equal(logs.length, 1, 'got one log message')
-    t.match(logs[0], ['info', /^found workspace root at/], 'logged info about workspace root')
+    const info = logs.filter(l => l[0] === 'info')
+    t.equal(info.length, 1, 'got one log message')
+    t.match(info[0],
+      ['info', 'config', /^found workspace root at/], 'logged info about workspace root')
   })
 
   t.test('warns when workspace has .npmrc', async (t) => {
@@ -1179,14 +1243,18 @@ t.test('workspaces', async (t) => {
       cwd: join(`${path}/workspaces/three`),
       shorthands,
       definitions,
+      nerfDarts,
     })
 
     await config.load()
     t.equal(config.localPrefix, path, 'localPrefix is the root')
     t.same(config.get('workspace'), [join(path, 'workspaces', 'three')], 'kept the workspace')
-    t.equal(logs.length, 2, 'got two log messages')
-    t.match(logs[0], ['warn', /^ignoring workspace config/], 'warned about ignored config')
-    t.match(logs[1], ['info', /^found workspace root at/], 'logged info about workspace root')
+    const filtered = logs.filter(l => l[0] === 'info' || l[0] === 'warn')
+    t.equal(filtered.length, 2, 'got two log messages')
+    t.match(filtered[0],
+      ['warn', 'config', /^ignoring workspace config/], 'warned about ignored config')
+    t.match(filtered[1],
+      ['info', 'config', /^found workspace root at/], 'logged info about workspace root')
   })
 
   t.test('prefix skips auto detect', async (t) => {
@@ -1201,12 +1269,14 @@ t.test('workspaces', async (t) => {
       cwd: join(`${path}/workspaces/one`),
       shorthands,
       definitions,
+      nerfDarts,
     })
 
     await config.load()
     t.equal(config.localPrefix, join(path, 'workspaces', 'one'), 'localPrefix is the root')
     t.same(config.get('workspace'), [], 'did not set workspace')
-    t.equal(logs.length, 0, 'got no log messages')
+    const filtered = logs.filter(l => l[0] !== 'silly')
+    t.equal(filtered.length, 0, 'got no log messages')
   })
 
   t.test('no-workspaces skips auto detect', async (t) => {
@@ -1221,12 +1291,14 @@ t.test('workspaces', async (t) => {
       cwd: join(`${path}/workspaces/one`),
       shorthands,
       definitions,
+      nerfDarts,
     })
 
     await config.load()
     t.equal(config.localPrefix, join(path, 'workspaces', 'one'), 'localPrefix is the root')
     t.same(config.get('workspace'), [], 'did not set workspace')
-    t.equal(logs.length, 0, 'got no log messages')
+    const filtered = logs.filter(l => l[0] !== 'silly')
+    t.equal(filtered.length, 0, 'got no log messages')
   })
 
   t.test('global skips auto detect', async (t) => {
@@ -1241,12 +1313,14 @@ t.test('workspaces', async (t) => {
       cwd: join(`${path}/workspaces/one`),
       shorthands,
       definitions,
+      nerfDarts,
     })
 
     await config.load()
     t.equal(config.localPrefix, join(path, 'workspaces', 'one'), 'localPrefix is the root')
     t.same(config.get('workspace'), [], 'did not set workspace')
-    t.equal(logs.length, 0, 'got no log messages')
+    const filtered = logs.filter(l => l[0] !== 'silly')
+    t.equal(filtered.length, 0, 'got no log messages')
   })
 
   t.test('location=global skips auto detect', async (t) => {
@@ -1261,12 +1335,14 @@ t.test('workspaces', async (t) => {
       cwd: join(`${path}/workspaces/one`),
       shorthands,
       definitions,
+      nerfDarts,
     })
 
     await config.load()
     t.equal(config.localPrefix, join(path, 'workspaces', 'one'), 'localPrefix is the root')
     t.same(config.get('workspace'), [], 'did not set workspace')
-    t.equal(logs.length, 0, 'got no log messages')
+    const filtered = logs.filter(l => l[0] !== 'silly')
+    t.equal(filtered.length, 0, 'got no log messages')
   })
 
   t.test('excludeNpmCwd skips auto detect', async (t) => {
@@ -1281,13 +1357,15 @@ t.test('workspaces', async (t) => {
       cwd: join(`${path}/workspaces/one`),
       shorthands,
       definitions,
+      nerfDarts,
       excludeNpmCwd: true,
     })
 
     await config.load()
     t.equal(config.localPrefix, join(path, 'workspaces', 'one'), 'localPrefix is the root')
     t.same(config.get('workspace'), [], 'did not set workspace')
-    t.equal(logs.length, 0, 'got no log messages')
+    const filtered = logs.filter(l => l[0] !== 'silly')
+    t.equal(filtered.length, 0, 'got no log messages')
   })
 
   t.test('does not error for invalid package.json', async (t) => {
@@ -1308,12 +1386,159 @@ t.test('workspaces', async (t) => {
       cwd: join(`${path}/workspaces/one`),
       shorthands,
       definitions,
+      nerfDarts,
     })
 
     await config.load()
     t.equal(config.localPrefix, path, 'localPrefix is the root')
     t.same(config.get('workspace'), [join(path, 'workspaces', 'one')], 'set the workspace')
-    t.equal(logs.length, 1, 'got one log message')
-    t.match(logs[0], ['info', /^found workspace root at/], 'logged info about workspace root')
+    const filtered = logs.filter(l => l[0] !== 'silly')
+    t.equal(filtered.length, 1, 'got one log message')
+    t.match(filtered[0],
+      ['info', 'config', /^found workspace root at/], 'logged info about workspace root')
   })
+})
+
+t.test('exclusive options conflict', async t => {
+  const path = t.testdir()
+  const config = new Config({
+    env: {},
+    npmPath: __dirname,
+    argv: [
+      process.execPath,
+      __filename,
+      '--truth=true',
+      '--lie=true',
+    ],
+    cwd: join(`${path}/project`),
+    shorthands,
+    definitions: {
+      ...definitions,
+      ...createDef('truth', {
+        default: false,
+        type: Boolean,
+        description: 'The Truth',
+        exclusive: ['lie'],
+      }),
+      ...createDef('lie', {
+        default: false,
+        type: Boolean,
+        description: 'A Lie',
+        exclusive: ['truth'],
+      }),
+    },
+    flatten,
+  })
+  await t.rejects(config.load(), {
+    name: 'TypeError',
+    message: '--lie can not be provided when using --truth',
+  })
+})
+
+t.test('env-replaced config from files is not clobbered when saving', async (t) => {
+  const path = t.testdir()
+  const opts = {
+    shorthands: {},
+    argv: ['node', __filename, `--userconfig=${path}/.npmrc`],
+    env: { TEST: 'test value' },
+    definitions: {
+      registry: { default: 'https://registry.npmjs.org/' },
+    },
+    npmPath: process.cwd(),
+  }
+  const c = new Config(opts)
+  await c.load()
+  c.set('test', '${TEST}', 'user')
+  await c.save('user')
+  const d = new Config(opts)
+  await d.load()
+  d.set('other', '${SOMETHING}', 'user')
+  await d.save('user')
+  const rc = readFileSync(`${path}/.npmrc`, 'utf8')
+  t.match(rc, 'test=${TEST}', '${TEST} is present, not parsed')
+})
+
+t.test('umask', async t => {
+  const mockUmask = async (t, umask) => {
+    const path = t.testdir()
+    const config = new Config({
+      env: {},
+      npmPath: __dirname,
+      argv: [
+        process.execPath,
+        __filename,
+        `--umask=${umask}`,
+      ],
+      cwd: join(`${path}/project`),
+      shorthands,
+      definitions,
+      flatten,
+    })
+    await config.load()
+    return config.get('umask')
+  }
+
+  t.test('valid', async t => {
+    const umask = await mockUmask(t, '777')
+    t.equal(umask, 777)
+  })
+  t.test('invalid', async t => {
+    const umask = await mockUmask(t, true)
+    t.equal(umask, 0)
+  })
+})
+
+t.test('catch project config prefix error', async t => {
+  const path = t.testdir()
+  t.testdir({
+    project: {
+      node_modules: {},
+      '.npmrc': `
+      project-config = true
+      foo = from-project-config
+      prefix=./lib
+      `,
+    },
+  })
+  const config = new Config({
+    npmPath: `${path}/npm`,
+    argv: [process.execPath, __filename],
+    cwd: join(`${path}/project`),
+    shorthands,
+    definitions,
+  })
+  const logs = []
+  const logHandler = (...args) => logs.push(args)
+  process.on('log', logHandler)
+  t.teardown(() => process.off('log', logHandler))
+  logs.length = 0
+  // config.load() triggers the error to be logged
+  await config.load()
+  const filtered = logs.filter(l => l[0] === 'error')
+  t.match(filtered, [[
+    'error', 'config', `prefix cannot be changed from project config: ${path}`,
+  ]], 'Expected error logged')
+})
+
+t.test('invalid single hyphen warnings', async t => {
+  const path = t.testdir()
+  const logs = []
+  const logHandler = (...args) => logs.push(args)
+  process.on('log', logHandler)
+  t.teardown(() => process.off('log', logHandler))
+  const config = new Config({
+    npmPath: `${path}/npm`,
+    env: {},
+    argv: [process.execPath, __filename, '-ws', '-iwr'],
+    cwd: path,
+    shorthands,
+    definitions,
+    nerfDarts,
+  })
+  await config.load()
+  const filtered = logs.filter(l => l[0] === 'warn')
+  t.match(filtered, [
+    ['warn', '-iwr is not a valid single-hyphen cli flag and will be removed in the future'],
+    ['warn', '-ws is not a valid single-hyphen cli flag and will be removed in the future'],
+  ], 'Warns about single hyphen configs')
 })

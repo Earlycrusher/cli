@@ -20,11 +20,12 @@ as `@org:newteam` in these commands.
 
 If you have two-factor authentication enabled in `auth-and-writes` mode, then
 you can provide a code from your authenticator with `[--otp <otpcode>]`.
-If you don't include this then you will be prompted.
+If you don't include this then you will be taken through a second factor flow based
+on your `authtype`.
 
 * create / destroy:
   Create a new team, or destroy an existing one. Note: You cannot remove the
-  `developers` team, <a href="https://docs.npmjs.com/about-developers-team" target="_blank">learn more.</a>
+  `developers` team, [learn more.](https://docs.npmjs.com/about-developers-team)
 
   Here's how to create a new team `newteam` under the `org` org:
 

@@ -1,9 +1,9 @@
-const { join } = require('path')
+const { join } = require('node:path')
 const t = require('tap')
 const setup = require('./fixtures/setup.js')
 
 t.test('basic', async t => {
-  const { registry, npm, isSmokePublish, readFile, paths } = await setup(t, {
+  const { registry, npm, npmPath, npmLocal, readFile, paths } = await setup(t, {
     testdir: {
       packages: {
         'abbrev-1.0.4': {
@@ -18,6 +18,16 @@ t.test('basic', async t => {
           'package.json': { name: 'promise-all-reject-late', version: '5.0.0' },
           'index.js': 'module.exports = null',
         },
+        'exec-test-1.0.0': {
+          'package.json': { name: 'exec-test', version: '1.0.0', bin: { 'exec-test': 'run.sh' } },
+          'index.js': 'module.exports = "1.0.0"',
+          'run.sh': 'echo 1.0.0',
+        },
+        'exec-test-1.0.1': {
+          'package.json': { name: 'exec-test', version: '1.0.1', bin: { 'exec-test': 'run.sh' } },
+          'index.js': 'module.exports = "1.0.1"',
+          'run.sh': 'echo 1.0.1',
+        },
       },
     },
   })
@@ -27,19 +37,41 @@ t.test('basic', async t => {
   await t.test('npm init', async t => {
     const cmdRes = await npm('init', '-y')
 
-    t.matchSnapshot(cmdRes, 'should have successful npm init result')
+    t.matchSnapshot(cmdRes.stdout, 'should have successful npm init result')
     const pkg = await readFile('package.json')
     t.equal(pkg.name, 'project', 'should have expected generated name')
     t.equal(pkg.version, '1.0.0', 'should have expected generated version')
   })
 
-  await t.test('npm --version', async t => {
-    const v = await npm('--version')
+  await t.test('npm root', async t => {
+    const npmRoot = await npm('help').then(setup.getNpmRoot)
 
-    if (isSmokePublish) {
-      t.match(v.trim(), /-[0-9a-f]{40}\.\d$/, 'must have a git version')
+    if (setup.SMOKE_PUBLISH) {
+      const globalNpmRoot = await npmPath('help').then(setup.getNpmRoot)
+      t.rejects(npmLocal('help'), 'npm local rejects during smoke publish')
+      t.not(npmRoot, setup.CLI_ROOT, 'npm root is not the local source dir')
+      t.equal(
+        npmRoot,
+        globalNpmRoot,
+        'during smoke publish, npm root and global root are equal'
+      )
     } else {
-      t.match(v.trim(), /^\d+\.\d+\.\d+/, 'has a version')
+      t.equal(
+        await npmLocal('help').then(setup.getNpmRoot),
+        setup.CLI_ROOT,
+        'npm local root is the local source dir'
+      )
+      t.equal(npmRoot, setup.CLI_ROOT, 'npm root is the local source dir')
+    }
+  })
+
+  await t.test('npm --version', async t => {
+    const v = await npm('--version').then(r => r.stdout.trim())
+
+    if (setup.SMOKE_PUBLISH) {
+      t.match(v, /-[0-9a-f]{40}\.\d$/, 'must have a git version')
+    } else {
+      t.match(v, /^\d+\.\d+\.\d+/, 'has a version')
     }
   })
 
@@ -60,7 +92,7 @@ t.test('basic', async t => {
 
     const cmdRes = await npm('install', 'abbrev@1.0.4')
 
-    t.matchSnapshot(cmdRes, 'should have expected install reify output')
+    t.matchSnapshot(cmdRes.stdout, 'should have expected install reify output')
     t.resolveMatchSnapshot(readFile('package.json'), 'should have expected package.json result')
     t.resolveMatchSnapshot(readFile('package-lock.json'), 'should have expected lockfile result')
   })
@@ -77,7 +109,7 @@ t.test('basic', async t => {
 
     const cmdRes = await npm('install', 'promise-all-reject-late', '-D')
 
-    t.matchSnapshot(cmdRes, 'should have expected dev dep added reify output')
+    t.matchSnapshot(cmdRes.stdout, 'should have expected dev dep added reify output')
     t.resolveMatchSnapshot(
       readFile('package.json'),
       'should have expected dev dep added package.json result'
@@ -91,19 +123,19 @@ t.test('basic', async t => {
   await t.test('npm ls', async t => {
     const cmdRes = await npm('ls')
 
-    t.matchSnapshot(cmdRes, 'should have expected ls output')
+    t.matchSnapshot(cmdRes.stdout, 'should have expected ls output')
   })
 
   await t.test('npm fund', async t => {
     const cmdRes = await npm('fund')
 
-    t.matchSnapshot(cmdRes, 'should have expected fund output')
+    t.matchSnapshot(cmdRes.stdout, 'should have expected fund output')
   })
 
   await t.test('npm explain', async t => {
     const cmdRes = await npm('explain', 'abbrev')
 
-    t.matchSnapshot(cmdRes, 'should have expected explain output')
+    t.matchSnapshot(cmdRes.stdout, 'should have expected explain output')
   })
 
   await t.test('npm diff', async t => {
@@ -119,7 +151,7 @@ t.test('basic', async t => {
 
     const cmdRes = await npm('diff', '--diff=abbrev@1.0.4', '--diff=abbrev@1.1.1')
 
-    t.matchSnapshot(cmdRes, 'should have expected diff output')
+    t.matchSnapshot(cmdRes.stdout, 'should have expected diff output')
   })
 
   await t.test('npm outdated', async t => {
@@ -143,7 +175,7 @@ t.test('basic', async t => {
   await t.test('npm pkg set scripts', async t => {
     const cmdRes = await npm('pkg', 'set', 'scripts.hello=echo Hello')
 
-    t.matchSnapshot(cmdRes, 'should have expected set-script output')
+    t.matchSnapshot(cmdRes.stdout, 'should have expected set-script output')
     t.resolveMatchSnapshot(
       readFile('package.json'),
       'should have expected script added package.json result'
@@ -153,13 +185,13 @@ t.test('basic', async t => {
   await t.test('npm run-script', async t => {
     const cmdRes = await npm('run', 'hello')
 
-    t.matchSnapshot(cmdRes, 'should have expected run-script output')
+    t.matchSnapshot(cmdRes.stdout, 'should have expected run-script output')
   })
 
   await t.test('npm prefix', async t => {
     const cmdRes = await npm('prefix')
 
-    t.matchSnapshot(cmdRes, 'should have expected prefix output')
+    t.matchSnapshot(cmdRes.stdout, 'should have expected prefix output')
   })
 
   await t.test('npm view', async t => {
@@ -168,7 +200,7 @@ t.test('basic', async t => {
     })
     const cmdRes = await npm('view', 'abbrev@1.0.4')
 
-    t.matchSnapshot(cmdRes, 'should have expected view output')
+    t.matchSnapshot(cmdRes.stdout, 'should have expected view output')
   })
 
   await t.test('npm update dep', async t => {
@@ -182,7 +214,7 @@ t.test('basic', async t => {
 
     const cmdRes = await npm('update', 'abbrev')
 
-    t.matchSnapshot(cmdRes, 'should have expected update reify output')
+    t.matchSnapshot(cmdRes.stdout, 'should have expected update reify output')
     t.resolveMatchSnapshot(readFile('package.json'),
       'should have expected update package.json result')
     t.resolveMatchSnapshot(readFile('package-lock.json'),
@@ -192,7 +224,7 @@ t.test('basic', async t => {
   await t.test('npm uninstall', async t => {
     const cmdRes = await npm('uninstall', 'promise-all-reject-late')
 
-    t.matchSnapshot(cmdRes, 'should have expected uninstall reify output')
+    t.matchSnapshot(cmdRes.stdout, 'should have expected uninstall reify output')
     t.resolveMatchSnapshot(readFile('package.json'),
       'should have expected uninstall package.json result')
     t.resolveMatchSnapshot(readFile('package-lock.json'),
@@ -201,10 +233,10 @@ t.test('basic', async t => {
 
   await t.test('npm pkg', async t => {
     let cmdRes = await npm('pkg', 'get', 'license')
-    t.matchSnapshot(cmdRes, 'should have expected pkg get output')
+    t.matchSnapshot(cmdRes.stdout, 'should have expected pkg get output')
 
     cmdRes = await npm('pkg', 'set', 'tap[test-env][0]=LC_ALL=sk')
-    t.matchSnapshot(cmdRes, 'should have expected pkg set output')
+    t.matchSnapshot(cmdRes.stdout, 'should have expected pkg set output')
 
     t.resolveMatchSnapshot(
       readFile('package.json'),
@@ -212,10 +244,10 @@ t.test('basic', async t => {
     )
 
     cmdRes = await npm('pkg', 'get')
-    t.matchSnapshot(cmdRes, 'should print package.json contents')
+    t.matchSnapshot(cmdRes.stdout, 'should print package.json contents')
 
     cmdRes = await npm('pkg', 'delete', 'tap')
-    t.matchSnapshot(cmdRes, 'should have expected pkg delete output')
+    t.matchSnapshot(cmdRes.stdout, 'should have expected pkg delete output')
 
     t.resolveMatchSnapshot(
       readFile('package.json'),
@@ -331,5 +363,45 @@ t.test('basic', async t => {
     const err = await npm('ci', '--loglevel=error').catch(e => e)
     t.equal(err.code, 1)
     t.matchSnapshot(err.stderr, 'should throw mismatch deps in lock file error')
+  })
+
+  await t.test('npm exec', async t => {
+    if (process.platform === 'win32') {
+      t.skip()
+      return
+    }
+    // First run finds package
+    {
+      const packument = registry.packument({
+        name: 'exec-test', version: '1.0.0', bin: { 'exec-test': 'run.sh' },
+      })
+      const manifest = registry.manifest({ name: 'exec-test', packuments: [packument] })
+      await registry.package({
+        times: 2,
+        manifest,
+        tarballs: {
+          '1.0.0': join(paths.root, 'packages', 'exec-test-1.0.0'),
+        },
+      })
+
+      const o = await npm('exec', 'exec-test')
+      t.match(o.stdout.trim(), '1.0.0')
+    }
+    // Second run finds newer version
+    {
+      const packument = registry.packument({
+        name: 'exec-test', version: '1.0.1', bin: { 'exec-test': 'run.sh' },
+      })
+      const manifest = registry.manifest({ name: 'exec-test', packuments: [packument] })
+      await registry.package({
+        times: 2,
+        manifest,
+        tarballs: {
+          '1.0.1': join(paths.root, 'packages', 'exec-test-1.0.1'),
+        },
+      })
+      const o = await npm('exec', 'exec-test')
+      t.match(o.stdout.trim(), '1.0.1')
+    }
   })
 })
